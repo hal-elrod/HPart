@@ -14,9 +14,6 @@ Greedy Randomized Adaptive Search Procedure for Network 2-partition
 			Department of Mechanical Engineering
 			The University of Texas at Austin
 
-	Spring Break, March 1989
-	last modified 6/30/89
-   . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .
 
    Input:	number of nodes, number of edges
 		node, node, weight

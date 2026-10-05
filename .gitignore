@@ -1,0 +1,9 @@
+# Compiled binaries (built from hmake.c / hpart.c)
+/hmake
+/hpart
+*.o
+*.exe
+
+# Generated graph/output files from running hmake / hpart
+testfile
+*.out

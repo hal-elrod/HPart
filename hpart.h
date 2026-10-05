@@ -24,32 +24,40 @@
    run off the end. */
 #define MAX_CAND_LIST_SIZE 9
 
-/* "Infinity" sentinels. Real costs and gains in this program are always
-   far smaller in magnitude than this, so these are used to seed a
-   min-search (with POS_INF - anything real is lower) or a max-search
-   (with NEG_INF - anything real is higher), and to mark a candidate
-   slot as "not holding a real value yet". */
-#define POS_INF 9999
-#define NEG_INF -9999
+/* "Infinity" sentinels. A node's gain (costa[]/heapslot.alpha) is
+   bounded by its degree, which can be at most nn-1 - these constants
+   need to stay far above that for every nn this program can practically
+   run on, not just the small graphs it was originally tested with. They
+   are only ever compared against, never added together, so there's no
+   overflow risk in giving them this much headroom within int's range.
+   Used to seed a min-search (with POS_INF - anything real is lower) or
+   a max-search (with NEG_INF - anything real is higher), and to mark a
+   candidate slot as "not holding a real value yet". */
+#define POS_INF 2000000000
+#define NEG_INF -2000000000
 
 /* Margin below/above the true +-POS_INF/NEG_INF sentinel used to tell
    whether a heap slot's gain (heapslot.alpha) is still a real, active
    value or has been marked removed (set to exactly -POS_INF/POS_INF).
    Kept as a separate constant with headroom rather than comparing
-   against the sentinel exactly, since real gains could in principle
-   get close to it for a large enough graph. */
-#define REMOVED_SLOT_MARGIN 9000
+   against the sentinel exactly: a removed slot's alpha keeps getting
+   nudged by +-1 as its neighbors are placed (see heappart's update
+   loops), so the margin needs to comfortably exceed the largest degree
+   this program can practically handle. */
+#define REMOVED_SLOT_MARGIN 1000000000
 
 /* Initial "worst case" gain in aslightswap/slightswap/slightestswap's
    search for the smallest positive-gain swap: larger than any gain a
-   real swap could produce, so the first positive-gain swap found
-   always replaces it. */
-#define WORST_SWAP_SENTINEL 5000
+   real swap could produce (bounded by node degree), so the first
+   positive-gain swap found always replaces it. */
+#define WORST_SWAP_SENTINEL 1000000000
 
 /* Initial value of main()'s mincval, the best (lowest) partition cost
-   seen so far: larger than any real partition cost, so the first
-   attempt's result always replaces it. */
-#define INITIAL_MIN_COST 32600
+   seen so far: larger than any real partition cost (bounded by the
+   number of edges), so the first attempt's result always replaces it.
+   If this is ever printed as the final "min cost", no attempt beat it -
+   a sign this needs to be raised further for the graph size in use. */
+#define INITIAL_MIN_COST 2000000000
 
 /* Fixed RNG seed so repeated runs over the same inputs and parameters
    are reproducible, which matters for comparing partitioning

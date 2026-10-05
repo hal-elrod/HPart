@@ -14,12 +14,11 @@
 
 static FILE *f_in;
 
-/*  Opens inputfile, inputs nn, ne, and allocates memory for matching. */
-void getgraph(char *inputfile,
-	      int **igraph,int **ma, int **mb, linknode **sindex,
-	      int *nn,int *ne,nodez **alist)
+/*  Opens inputfile, inputs nn, ne, and allocates the shared, read-only
+    graph data (igraph[] and alist[]). */
+void getgraph(char *inputfile,int **igraph,int *nn,int *ne,nodez **alist)
 {
-int igraph_size,nn1,nnhalf;
+int igraph_size,nn1;
 
 	f_in = fopen(inputfile,"r");
 	if (f_in == NULL)
@@ -33,7 +32,6 @@ int igraph_size,nn1,nnhalf;
 		exit(1);
 		}
         nn1 = (*nn)+1;
-	nnhalf = (*nn) / 2;
 	igraph_size = (nn1) * (nn1);
 	if(big_flag)
 		{
@@ -44,11 +42,25 @@ int igraph_size,nn1,nnhalf;
 			exit(0);
 			}
 		}
+	*alist = (nodez *) calloc (nn1,sizeof(nodez));
+	if (*alist == NULL)
+		{
+		puts("Couldn't allocate an array");
+		exit(0);
+		}
+}
+
+/* Allocates one thread's private working arrays for building and
+   holding a partition: ma[]/mb[] (the two sides) and sindex[]
+   (greedypart's free-list of unplaced nodes). */
+void alloc_partition(int nn,int **ma,int **mb,linknode **sindex)
+{
+int nn1 = nn+1,nnhalf = nn/2;
+
 	*ma = (int *) calloc (nnhalf + 1,sizeof(int));
 	*mb = (int *) calloc (nnhalf + 1,sizeof(int));
 	*sindex = (linknode *) calloc (nn1,sizeof(linknode));
-	*alist = (nodez *) calloc (nn1,sizeof(nodez));
-	if (*ma == NULL || *mb == NULL || *sindex == NULL || *alist == NULL)
+	if (*ma == NULL || *mb == NULL || *sindex == NULL)
 		{
 		puts("Couldn't allocate an array");
 		exit(0);

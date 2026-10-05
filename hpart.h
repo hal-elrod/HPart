@@ -14,8 +14,16 @@
 #include <stdio.h>
 
 #define ind(i,j,nn) (i*nn+j)
+
+/* Per-thread RNG stream for the OMP-parallel attempt loop in main().
+   Each thread sets its own rng_seed once (derived from the single
+   RNG_SEED below plus its thread number) and then only ever touches
+   its own copy via rand_r(), so construction randomness stays both
+   race-free and reproducible instead of every thread racing on libc's
+   global rand()/srand() state. */
+extern __thread unsigned int rng_seed;
 #undef random
-#define random(num) (rand() % (num))
+#define random(num) ((int)(rand_r(&rng_seed) % (num)))
 
 /* Upper bound on cand_list_size (the <candidate-list-size> command-line
    argument). greedypart's cand[]/candcost[] and heappart's clist[]/
@@ -118,10 +126,17 @@ typedef struct {
 	int bpoint;
 	} crossindex;
 
-/* Opens inputfile and allocates the graph/working arrays. */
-void getgraph(char *inputfile,
-	      int  **igraph,int **a, int **b,linknode **sindex,
-	      int *nn,int *ne,nodez **alist);
+/* Opens inputfile and allocates the shared, read-only graph data:
+   igraph[] (if big_flag) and alist[]. nn/ne are filled in from the
+   file's header line. */
+void getgraph(char *inputfile,int **igraph,int *nn,int *ne,nodez **alist);
+
+/* Allocates one thread's private working arrays for building and
+   holding a partition: ma[]/mb[] (the two sides) and sindex[]
+   (greedypart's free-list of unplaced nodes). Call once per thread and
+   reuse across that thread's attempts, same as the old single-threaded
+   main() did once for the whole program. */
+void alloc_partition(int nn,int **ma,int **mb,linknode **sindex);
 
 /* Fills igraph (if big_flag) and alist from the input file's edge list. */
 void readgraph(int ne,int nn,int igraph[],nodez alist[]);

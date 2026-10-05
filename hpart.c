@@ -41,10 +41,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <omp.h>
 #include "hpart.h"
 
 static clock_t oldmtime;
 int cand_list_size,big_flag = 1;
+__thread unsigned int rng_seed;
 
 /* Prints a full explanation of every argument. Shown on a missing/bad
    argument, or on request via -h/--help/-?. */
@@ -164,17 +166,21 @@ void remem(int **pa,int nn)
 		}
 }
 
-/* Driver: reads the graph once, then repeatedly builds a fresh partition
-   (modea) and locally improves it (modeb) for run_time*2 seconds,
-   keeping track of the lowest-cost partition seen, then reports it. */
+/* Driver: reads the graph once, then runs one attempt loop per thread
+   in parallel - each building a fresh partition (modea) and locally
+   improving it (modeb), for run_time*2 seconds of wall-clock time -
+   and reports the lowest-cost partition seen across all of them.
+
+   Threads share the read-only graph (igraph[]/alist[]) but each keeps
+   its own partition (ma[]/mb[]/sindex[]), gain array (costa[]), and RNG
+   stream (rng_seed), so attempts never interfere with each other. */
 int main (int argc,char *argv[])
 {
-int nn,ne,cval = 0,num_attemp = 0,mincval = INITIAL_MIN_COST;
-int *igraph, *ma,*mb,*costa;  /* ,*check,x; */
+int nn,ne,num_attemp = 0,mincval = INITIAL_MIN_COST;
+int *igraph;
 nodez *alist;
-linknode *sindex;
 cmdargs args;
-float curtime,run_time;
+double run_time,start_time;
 
 	args = parse_args(argc,argv);
 	cand_list_size = args.cand_list_size;
@@ -182,45 +188,66 @@ float curtime,run_time;
 		big_flag = 0;
 	run_time = args.run_time;
 
-	srand(RNG_SEED);
-	getgraph(args.inputfile,&igraph,&ma,&mb,&sindex,
-		 &nn,&ne,&alist);
-
+	getgraph(args.inputfile,&igraph,&nn,&ne,&alist);
 	readgraph(ne,nn,igraph,alist);
-	curtime = clock()/CLOCKS_PER_SEC;
-	while (curtime < run_time * 2)
+
+	start_time = omp_get_wtime();
+
+	#pragma omp parallel default(none) \
+		shared(args,igraph,alist,nn,run_time,start_time,mincval,num_attemp)
 		{
-		num_attemp++;
-		remem(&costa,nn);
-		switch (args.modea)
+		int *ma,*mb,*costa,cval;
+		linknode *sindex;
+		int local_mincval = INITIAL_MIN_COST,local_attemps = 0;
+
+		rng_seed = RNG_SEED + (unsigned int)omp_get_thread_num();
+		alloc_partition(nn,&ma,&mb,&sindex);
+
+		while (omp_get_wtime() - start_time < run_time * 2)
 			{
-			case 1: heappart(costa,nn,ma,mb,alist);
-				break;
-			case 2: greedypart(costa,nn,ma,mb,sindex,alist);
-				break;
-			}
-		switch (args.modeb)
+			local_attemps++;
+			remem(&costa,nn);
+			switch (args.modea)
+				{
+				case 1: heappart(costa,nn,ma,mb,alist);
+					break;
+				case 2: greedypart(costa,nn,ma,mb,sindex,alist);
+					break;
+				}
+			cval = 0;
+			switch (args.modeb)
+				{
+				case 1: hswap(igraph,ma,mb,costa,nn,&cval,alist);
+					break;
+				case 2: slightswap(igraph,ma,mb,costa,nn,&cval,alist);
+					break;
+				case 3: slightestswap(igraph,ma,mb,costa,nn,&cval,alist);
+					break;
+				case 4: aslightswap(ma,mb,costa,nn,&cval,alist);
+					break;
+				}
+			free(costa);
+			if (cval < local_mincval)
+				local_mincval = cval;
+			}    /* while */
+		free (ma); free(mb);
+		free (sindex);
+
+		/* Combine this thread's results into the shared totals. An
+		   omp critical section here (rather than a reduction clause)
+		   so the combine step is a real, TSan-visible mutex instead of
+		   compiler-generated reduction code. */
+		#pragma omp critical
 			{
-			case 1: hswap(igraph,ma,mb,costa,nn,&cval,alist);
-				break;
-			case 2: slightswap(igraph,ma,mb,costa,nn,&cval,alist);
-				break;
-			case 3: slightestswap(igraph,ma,mb,costa,nn,&cval,alist);
-				break;
-			case 4: aslightswap(ma,mb,costa,nn,&cval,alist);
-				break;
+			if (local_mincval < mincval)
+				mincval = local_mincval;
+			num_attemp += local_attemps;
 			}
-		free(costa);
-		if (cval < mincval)
-			mincval = cval;
-		cval = 0;
-		curtime = clock()/CLOCKS_PER_SEC;
-		}    /* while */
+		}    /* omp parallel */
+
 	printf("min cost = %d\n",mincval);
 	printf("number of attempts = %d\n",num_attemp);
 	free (alist);
 	if (big_flag) free(igraph);
-	free (ma); free(mb);
-	free (sindex);
 	return EXIT_SUCCESS;
 }

@@ -1,9 +1,11 @@
 /* .........................................................................
-   HPART.h: shared types and function prototypes for HPART.c
+   hpart.h: shared types, constants, globals, and function prototypes
+   for hpart.c (CLI + driver loop), readpart.c (graph input), and
+   greedy.c (partition construction + local-search swap strategies).
 
-   Split out of HPART.c for clarity. The original (1989) toolchain for this
-   program ran on hardware that didn't support splitting code across .h/.c
-   files, so everything used to live in one file.
+   This used to be one file, HPART.C. The original (1989) toolchain for
+   this program ran on hardware that didn't support splitting code
+   across .h/.c files at all, so everything lived in a single file.
    ....................................................................... */
 
 #ifndef HPART_H
@@ -15,11 +17,53 @@
 #undef random
 #define random(num) (rand() % (num))
 
-/* Upper bound on cand_list_size (the <cl-size> command-line argument).
-   greedypart's cand[]/candcost[] and heappart's clist[]/templist[] are
-   all sized off this constant - keep it in sync with those array sizes
-   if they ever change, or candidate-list writes can run off the end. */
+/* Upper bound on cand_list_size (the <candidate-list-size> command-line
+   argument). greedypart's cand[]/candcost[] and heappart's clist[]/
+   templist[] are all sized off this constant - keep it in sync with
+   those array sizes if they ever change, or candidate-list writes can
+   run off the end. */
 #define MAX_CAND_LIST_SIZE 9
+
+/* "Infinity" sentinels. Real costs and gains in this program are always
+   far smaller in magnitude than this, so these are used to seed a
+   min-search (with POS_INF - anything real is lower) or a max-search
+   (with NEG_INF - anything real is higher), and to mark a candidate
+   slot as "not holding a real value yet". */
+#define POS_INF 9999
+#define NEG_INF -9999
+
+/* Margin below/above the true +-POS_INF/NEG_INF sentinel used to tell
+   whether a heap slot's gain (heapslot.alpha) is still a real, active
+   value or has been marked removed (set to exactly -POS_INF/POS_INF).
+   Kept as a separate constant with headroom rather than comparing
+   against the sentinel exactly, since real gains could in principle
+   get close to it for a large enough graph. */
+#define REMOVED_SLOT_MARGIN 9000
+
+/* Initial "worst case" gain in aslightswap/slightswap/slightestswap's
+   search for the smallest positive-gain swap: larger than any gain a
+   real swap could produce, so the first positive-gain swap found
+   always replaces it. */
+#define WORST_SWAP_SENTINEL 5000
+
+/* Initial value of main()'s mincval, the best (lowest) partition cost
+   seen so far: larger than any real partition cost, so the first
+   attempt's result always replaces it. */
+#define INITIAL_MIN_COST 32600
+
+/* Fixed RNG seed so repeated runs over the same inputs and parameters
+   are reproducible, which matters for comparing partitioning
+   strategies against each other. */
+#define RNG_SEED 32063
+
+/* Defined in hpart.c (set there from parse_args()'s result), shared
+   with readpart.c (getgraph/readgraph) and greedy.c (greedypart/
+   heappart). cand_list_size is the validated <candidate-list-size>
+   argument; big_flag is 1 unless modeb is 4 (the compact, no-matrix
+   swap strategy), in which case the igraph[] adjacency matrix is
+   never allocated or populated. */
+extern int cand_list_size;
+extern int big_flag;
 
 /* Parsed, validated command-line arguments. parse_args() exits the
    program (after printing usage/an error) rather than returning an
@@ -80,16 +124,6 @@ void readgraph(int ne,int nn,int igraph[],nodez alist[]);
 void greedypart(int costa[],int nn,int ma[],
 		int mb[],linknode sindex[],nodez alist[]);
 
-/* Sift a slot toward the root of heapa (max-on-top) / heapb (min-on-top)
-   after its gain has increased / decreased. */
-void upaheap(heapslot heap[],int i,crossindex index[]);
-void upbheap(heapslot heap[],int i,crossindex index[]);
-
-/* Sift a slot toward the leaves of heapa (max-on-top) / heapb (min-on-top)
-   after its gain has decreased / increased. */
-void downaheap(heapslot heap[],int i,int nn,crossindex index[]);
-void downbheap(heapslot heap[],int i,int nn,crossindex index[]);
-
 /* Builds an initial 2-partition greedily, same as greedypart but using
    two gain heaps (heapa/heapb) instead of a linear scan to pick each
    next candidate. */
@@ -100,10 +134,6 @@ float periodt(void);
 
 /* Allocates and zeroes the per-attempt gain array costa[]. */
 void remem(int **pa,int nn);
-
-/* Returns 1 if node1 and node2 are adjacent in the input graph, else 0.
-   Used instead of the igraph[] adjacency matrix when big_flag is off. */
-int finda_weight(nodez alist[],int node1,int node2);
 
 /* Local-search postprocessors: repeatedly swap one node from set A with
    one from set B whenever doing so improves the cross-edge weight,

@@ -35,7 +35,6 @@
 			= "3", slightest swap
 			= "4", compact slight swap
 
-   For MS-DOS systems, HPART should be compiled under COMPACT or HUGE models.
    ....................................................................... */
 
 #include <stdio.h>

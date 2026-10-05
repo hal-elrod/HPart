@@ -27,7 +27,11 @@ int igraph_size,nn1,nnhalf;
 		printf("Error: couldn't open input file \"%s\".\n",inputfile);
 		exit(1);
 		}
-	fscanf(f_in,"%d,%d",nn,ne);
+	if (fscanf(f_in,"%d,%d",nn,ne) != 2)
+		{
+		printf("Error: couldn't read node/edge counts from \"%s\".\n",inputfile);
+		exit(1);
+		}
         nn1 = (*nn)+1;
 	nnhalf = (*nn) / 2;
 	igraph_size = (nn1) * (nn1);
@@ -75,7 +79,11 @@ nodep *head;
 
 	for (x=1;x < ne + 1;x++)
 		{
-		fscanf(f_in,"%d,%d,%d",&i,&j,&weight);
+		if (fscanf(f_in,"%d,%d,%d",&i,&j,&weight) != 3)
+			{
+			printf("Error: couldn't read edge %d of %d from the input file.\n",x,ne);
+			exit(1);
+			}
 		/* igraph[i]++; */
 		/* igraph[j]++; */
 		if (big_flag)

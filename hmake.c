@@ -63,10 +63,18 @@ int main(int argc,char *argv[])
       }
 
    printf("Enter a seed for the random number generator (a big one): \n");
-   scanf("%ld",&seed);
+   if (scanf("%ld",&seed) != 1)
+      {
+      printf("Error: couldn't read a seed value.\n");
+      exit(1);
+      }
    srand(seed);
    printf("Enter number of nodes, probability of edge\n");
-   scanf("%d %f",&n,&p);
+   if (scanf("%d %f",&n,&p) != 2)
+      {
+      printf("Error: couldn't read node count / edge probability.\n");
+      exit(1);
+      }
    if (twofiles)
       {
       fputs("F A B C P Q\n",p2_out);

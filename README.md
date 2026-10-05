@@ -1,6 +1,6 @@
 Greedy Randomized Adaptive Search Procedure for Network 2-partition
 
-HPART.C: A GRASP approach to the 2-partition problem
+HPART.c: A GRASP approach to the 2-partition problem
 
 GRASP == Greedy Randomized Adaptive Search Procedure
 Builds a low weight partition of 0-1 graph by greedily adding
@@ -9,7 +9,7 @@ the current partition, then the weight of the partition is reduced
 by exchanging pairs of nodes when the exchange will increase the
 weight of the inner edges.
 
-HMAKE.C: Generates randomized graphs
+HMAKE.c: Generates randomized graphs
 
 @Author	Hal Elrod   --  Operations Research Group
 			The University of Texas at Austin

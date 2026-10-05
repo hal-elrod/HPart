@@ -36,38 +36,34 @@
 .................................................................*/
 
 #include <stdlib.h>
-#include <string.h>
 #include <stdio.h>
+#include "hmake.h"
 
 FILE *p_out,*p2_out;
 int ne = 0;
-int n,numn,a,b,i,j,w,twofiles = 0;
+int n,numn,i,j,twofiles = 0;
 float p,r;
-char outfile[12],outfile2[12];
 long seed;
-void help_me(void);
 
-main(argc,argv)
-int argc;
-char *argv[];
+/* Reads a seed, node count, and edge probability from stdin, then writes
+   a random 0-1 graph (every edge weight 1) to argv[1] in "n,ne" + edge-list
+   format, and optionally a second file in Kernighan-Lin input format
+   to argv[2]. See the file header above for both formats. */
+int main(int argc,char *argv[])
 {
-double rando(long *seed);
-
    if (argc < 2 || argc > 3)
       help_me();
-   strcpy(outfile,argv[1]);
-   if (!(p_out = fopen(outfile,"w")))
+   if (!(p_out = fopen(argv[1],"w")))
       help_me();
    if (argc == 3)
       {
-      strcpy(outfile2,argv[2]);
-      if (!(p2_out = fopen(outfile2,"w")))
+      if (!(p2_out = fopen(argv[2],"w")))
          help_me();
       twofiles = 1;
       }
 
    printf("Enter a seed for the random number generator (a big one): \n");
-   scanf("%f",&seed);
+   scanf("%ld",&seed);
    srand(seed);
    printf("Enter number of nodes, probability of edge\n");
    scanf("%d %f",&n,&p);
@@ -100,8 +96,10 @@ double rando(long *seed);
                 fputs("E\n",p2_out);
       fclose(p2_out);
       }
+   return 0;
 }
 
+/* Prints usage and exits; called on any bad argument or unopenable file. */
 void help_me(void)
    {
    printf("HMAKE: a program to generate random graphs (no zero edges)\n");

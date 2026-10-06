@@ -13,7 +13,7 @@ HPART_OBJS = hpart.o readpart.o greedy.o
 all: hpart hmake
 
 hpart: $(HPART_OBJS)
-	$(CC) $(CFLAGS) $(OMPFLAGS) -o $@ $(HPART_OBJS) $(LDLIBS) -lpthread
+	$(CC) $(CFLAGS) $(OMPFLAGS) -o $@ $(HPART_OBJS) $(LDLIBS)
 
 hmake: hmake.o
 	$(CC) $(CFLAGS) -o $@ hmake.o

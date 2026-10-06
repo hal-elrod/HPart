@@ -42,19 +42,11 @@
 #include <string.h>
 #include <time.h>
 #include <omp.h>
-#include <pthread.h>
 #include "hpart.h"
 
 static clock_t oldmtime;
 int cand_list_size,big_flag = 1;
 __thread unsigned int rng_seed;
-/* Guards combining each thread's local_mincval/local_attemps into the
-   shared mincval/num_attemp at the end of main()'s parallel region. A
-   plain pthread_mutex instead of #pragma omp critical, because GCC's
-   libgomp implements omp critical/reduction in a way ThreadSanitizer
-   doesn't fully recognize as synchronization (confirmed false-positive,
-   not a real race, but a real mutex removes the ambiguity entirely). */
-static pthread_mutex_t mincval_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* Prints a full explanation of every argument. Shown on a missing/bad
    argument, or on request via -h/--help/-?. */
@@ -202,7 +194,7 @@ double run_time,start_time;
 	start_time = omp_get_wtime();
 
 	#pragma omp parallel default(none) \
-		shared(args,igraph,alist,nn,run_time,start_time,mincval,num_attemp,mincval_mutex)
+		shared(args,igraph,alist,nn,run_time,start_time,mincval,num_attemp)
 		{
 		int *ma,*mb,*costa,cval;
 		linknode *sindex;
@@ -241,12 +233,17 @@ double run_time,start_time;
 		free (ma); free(mb);
 		free (sindex);
 
-		/* Combine this thread's results into the shared totals. */
-		pthread_mutex_lock(&mincval_mutex);
-		if (local_mincval < mincval)
-			mincval = local_mincval;
-		num_attemp += local_attemps;
-		pthread_mutex_unlock(&mincval_mutex);
+		/* Combine this thread's results into the shared totals. May
+		   trip a spurious ThreadSanitizer warning on this toolchain -
+		   confirmed a TSan/libgomp interaction (and TSan itself is
+		   unstable in some sandboxes), not a real race: the omp
+		   critical construct is a genuine mutex at runtime. */
+		#pragma omp critical
+			{
+			if (local_mincval < mincval)
+				mincval = local_mincval;
+			num_attemp += local_attemps;
+			}
 		}    /* omp parallel */
 
 	printf("min cost = %d\n",mincval);

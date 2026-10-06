@@ -18,7 +18,14 @@ static FILE *f_in;
     graph data (igraph[] and alist[]). */
 void getgraph(char *inputfile,int **igraph,int *nn,int *ne,nodez **alist)
 {
-int igraph_size,nn1;
+/* size_t, not int: igraph_size is nn1 squared, which overflows a 32-bit
+   int for nn past about 46000 - silently wrapping to a small or even
+   negative value, which calloc would then either reject outright or
+   (worse) satisfy with a buffer far too small for the i*nn+j writes
+   readgraph() is about to make into it. size_t is 64-bit on any
+   platform this program can realistically run on, so nn1*nn1 has no
+   overflow risk for any nn this program could otherwise allocate for. */
+size_t igraph_size,nn1;
 
 	f_in = fopen(inputfile,"r");
 	if (f_in == NULL)
@@ -31,8 +38,13 @@ int igraph_size,nn1;
 		printf("Error: couldn't read node/edge counts from \"%s\".\n",inputfile);
 		exit(1);
 		}
-        nn1 = (*nn)+1;
-	igraph_size = (nn1) * (nn1);
+	if (*nn < 0 || *ne < 0)
+		{
+		printf("Error: node/edge counts in \"%s\" must be non-negative.\n",inputfile);
+		exit(1);
+		}
+        nn1 = (size_t)(*nn) + 1;
+	igraph_size = nn1 * nn1;
 	if(big_flag)
 		{
 		*igraph = (int *) calloc (igraph_size,sizeof(int));
@@ -96,12 +108,21 @@ nodep *head;
 			printf("Error: couldn't read edge %d of %d from the input file.\n",x,ne);
 			exit(1);
 			}
+		if (i < 1 || i > nn || j < 1 || j > nn)
+			{
+			printf("Error: edge %d of %d has out-of-range node id(s) (%d,%d); expected 1..%d.\n",
+			       x,ne,i,j,nn);
+			exit(1);
+			}
 		/* igraph[i]++; */
 		/* igraph[j]++; */
 		if (big_flag)
 			{
-			igraph[ind(i,j,nn)] = weight;
-			igraph[ind(j,i,nn)] = weight;
+			/* (size_t) cast: i*nn alone overflows a 32-bit int
+			   once nn exceeds about 46000 - same class of bug as
+			   igraph_size above, fixed the same way. */
+			igraph[(size_t)i*nn+j] = weight;
+			igraph[(size_t)j*nn+i] = weight;
 			}
 		alist[i].node++;
 		alist[j].node++;
@@ -122,4 +143,26 @@ nodep *head;
 		head[j] = newj;
 		}
 	free(head);
+	fclose(f_in);
+}
+
+/* Frees the adjacency-list nodes readgraph() malloc'd for every node's
+   neighbor chain. alist[x] itself is the chain's sentinel head (part of
+   the caller's alist[] array, freed separately by the caller) - this
+   only walks and frees what hangs off each alist[x].next. */
+void freegraph(int nn,nodez alist[])
+{
+int x;
+nodez *lptr,*next;
+
+	for (x = 1; x <= nn; x++)
+		{
+		lptr = alist[x].next;
+		while (lptr != NULL)
+			{
+			next = lptr->next;
+			free(lptr);
+			lptr = next;
+			}
+		}
 }

@@ -58,7 +58,10 @@ int main(int argc,char *argv[])
    if (argc == 3)
       {
       if (!(p2_out = fopen(argv[2],"w")))
+         {
+         fclose(p_out);
          help_me();
+         }
       twofiles = 1;
       }
 

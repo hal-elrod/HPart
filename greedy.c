@@ -230,7 +230,11 @@ void heappart(int costa[],int nn,int ma[],int mb[],nodez alist[])
 int nnhalf = nn/2,top,cand,maxa,c,temptop,temp,clist[MAX_CAND_LIST_SIZE+1],temptr;
 int z,y,candp;
 register int x,csize;
-heapslot templist[30],*heapa,*heapb,*ha,*hb,*tp,*tp2;
+/* templist holds at most 2 entries per candidate-list slot considered
+   (c runs 1..cand_list_size-1, <= MAX_CAND_LIST_SIZE-1), and csize is
+   never decremented - sized off MAX_CAND_LIST_SIZE so it can't silently
+   overflow if that constant is ever raised. */
+heapslot templist[2*(MAX_CAND_LIST_SIZE-1)],*heapa,*heapb,*ha,*hb,*tp,*tp2;
 crossindex *index,*ind;
 nodez *lptr;
 
@@ -510,7 +514,7 @@ nodez *lptr;
 			while (!found && (y <= nnhalf))
 				{
 				gain =  costa[mb[y]] - costa[ma[x]]
-					- ((igraph[ind(ma[x],mb[y],nn)]) << 1);
+					- ((igraph[(size_t)ma[x]*nn+mb[y]]) << 1);
 				if (gain > 0)
 					found++;
 				else
@@ -540,7 +544,7 @@ nodez *lptr;
 			while (!found && (x <= nnhalf))
 				{
 				gain =  costa[mb[y]] - costa[ma[x]]
-					- ((igraph[ind(ma[x],mb[y],nn)]) << 1);
+					- ((igraph[(size_t)ma[x]*nn+mb[y]]) << 1);
 				if (gain > 0)
 					found++;
 				else
@@ -582,7 +586,7 @@ nodez *lptr;
     *cval = 0;
     for (x = 1;x <= nnhalf; x++)
 	for (y = 1;y<= nnhalf; y++)
-		*cval += igraph[ind(ma[x],mb[y],nn)];
+		*cval += igraph[(size_t)ma[x]*nn+mb[y]];
 
 }
 
@@ -608,7 +612,7 @@ nodez *lptr;
 			while (y <= nnhalf && !worst)
 				{
 				gain = costa[mb[y]] - costa[ma[x]]
-					- ((igraph[ind(ma[x],mb[y],nn)])<<1);
+					- ((igraph[(size_t)ma[x]*nn+mb[y]])<<1);
 				if (gain > 0 && gain < worstswap)
 					{
 					if (gain < 3)
@@ -632,7 +636,7 @@ nodez *lptr;
 			while (x <= nnhalf && !worst)
 				{
 				gain = costa[mb[y]] - costa[ma[x]]
-					- ((igraph[ind(ma[x],mb[y],nn)])<<1);
+					- ((igraph[(size_t)ma[x]*nn+mb[y]])<<1);
 				if (gain > 0 && gain< worstswap)
 					{
 					if (gain <3)
@@ -667,7 +671,7 @@ nodez *lptr;
     *cval = 0;
     for (x = 1;x <= nnhalf; x++)
 	for (y = 1;y<= nnhalf; y++)
-		*cval += igraph[ind(ma[x],mb[y],nn)];
+		*cval += igraph[(size_t)ma[x]*nn+mb[y]];
 	/* printf("Cross value after SLIGHT swap is %d\n",*cval); */
 }
 
@@ -694,7 +698,7 @@ nodez *lptr;
 			while (y <= nnhalf && !worst)
 				{
 				gain = costa[mb[y]] - costa[ma[x]]
-					- ((igraph[ind(ma[x],mb[y],nn)])<<1);
+					- ((igraph[(size_t)ma[x]*nn+mb[y]])<<1);
 				if (gain > 0 && gain < worstswap)
 					{
 					if (gain == 1)
@@ -718,7 +722,7 @@ nodez *lptr;
 			while (x <= nnhalf && !worst)
 				{
 				gain = costa[mb[y]] - costa[ma[x]]
-					- ((igraph[ind(ma[x],mb[y],nn)])<<1);
+					- ((igraph[(size_t)ma[x]*nn+mb[y]])<<1);
 				if (gain > 0 && gain< worstswap)
 					{
 					if (gain == 1)
@@ -753,6 +757,6 @@ nodez *lptr;
     *cval = 0;
     for (x = 1;x <= nnhalf; x++)
 	for (y = 1;y<= nnhalf; y++)
-		*cval += igraph[ind(ma[x],mb[y],nn)];
+		*cval += igraph[(size_t)ma[x]*nn+mb[y]];
 	/* printf("Cross value after SLIGHTEST swap is %d\n",*cval); */
 }

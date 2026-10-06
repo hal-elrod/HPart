@@ -13,8 +13,6 @@
 
 #include <stdio.h>
 
-#define ind(i,j,nn) (i*nn+j)
-
 /* Per-thread RNG stream for the OMP-parallel attempt loop in main().
    Each thread sets its own rng_seed once (derived from the single
    RNG_SEED below plus its thread number) and then only ever touches
@@ -140,6 +138,11 @@ void alloc_partition(int nn,int **ma,int **mb,linknode **sindex);
 
 /* Fills igraph (if big_flag) and alist from the input file's edge list. */
 void readgraph(int ne,int nn,int igraph[],nodez alist[]);
+
+/* Frees the adjacency-list nodes readgraph() allocated for alist[]'s
+   neighbor chains. Call once, after the last use of alist[], before
+   freeing alist[] itself. */
+void freegraph(int nn,nodez alist[]);
 
 /* Builds an initial 2-partition greedily, picking each node from a
    randomized candidate list, using a doubly-linked list of unplaced
